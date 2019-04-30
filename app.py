@@ -9,8 +9,10 @@ from linebot import (
 )
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage,
+    MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 )
+from google_images_search import GoogleImagesSearch
+
 app = Flask(__name__)
 # get LINE_CHANNEL_ACCESS_TOKEN from your environment variable
 line_bot_api = LineBotApi(
@@ -22,7 +24,7 @@ handler = WebhookHandler(
     config("LINE_CHANNEL_SECRET",
            default=os.environ.get('LINE_CHANNEL_SECRET'))
 )
-
+import random
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -33,23 +35,37 @@ def callback():
     body = request.get_data(as_text=True)
     app.logger.info("Request body: " + body)
 
-
     # handle webhook body
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
 
-
     return 'OK'
+
+def search_g(query):
+    gis = GoogleImagesSearch('AIzaSyBjMfb1TfPfhDRKbzyK9E6cDypYXHEbhQw', '000266786199815297998:e1orac7unwo')
+    num = random.randint(1, 4)
+    gis.search({'q':query, 'num':num})
+    result = ""
+    for image in gis.results():
+        if (image.url.lower().find("https") == 0):
+            result = image.url
+    return result
 
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=event.message.text)
-    )
+    query = event.message.text
+    temp = query.lower()
+    if (temp.find("pic ") == 0):
+        query = query[4::]
+        result = search_g(query)
+        line_bot_api.reply_message(
+            event.reply_token,
+            ImageSendMessage(original_content_url=result, preview_image_url=result)
+        )
+
 
 
 
